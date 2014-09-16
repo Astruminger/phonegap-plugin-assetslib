@@ -19,6 +19,8 @@
 @property (nonatomic, strong) NSMutableArray *groups;
 @property (nonatomic, strong) NSMutableArray *assets;
 @property (nonatomic, strong) NSDateFormatter *dateFormatter;
+@property (nonatomic, strong) NSMutableArray *assetsAlbumName;
+
 @property int assetsCount;
 
 @end
@@ -46,6 +48,12 @@
     } else {
         [self.assets removeAllObjects];
     }
+    if (!self.assetsAlbumName) {
+        _assetsAlbumName = [[NSMutableArray alloc] init];
+    } else {
+        [self.assetsAlbumName removeAllObjects];
+    }
+    
     self.assetsCount = 0;
     
     ALAssetsGroupEnumerationResultsBlock assetsEnumerationBlock = ^(ALAsset *result, NSUInteger index, BOOL *stop) {
@@ -82,7 +90,15 @@
         // NSLog(@"AssetsLib::getAllPhotos::listGroupBlock > %@ (%d)   type: %@    url: %@",[group valueForProperty:ALAssetsGroupPropertyName],[group numberOfAssets],[group valueForProperty:ALAssetsGroupPropertyType],[group valueForProperty:ALAssetsGroupPropertyURL]);
         if ([group numberOfAssets] > 0)
         {
-            NSLog(@"Got asset group \"%@\" with %ld photos",[group valueForProperty:ALAssetsGroupPropertyName],(long)[group numberOfAssets]);
+            int groupAssetNum = [group numberOfAssets];
+            NSString *groupName = [group valueForProperty:ALAssetsGroupPropertyName];
+            NSLog(@"Got asset group \"%@\" with %ld photos",groupName,(long)groupAssetNum);
+            
+            //Save Album names to given image
+            for (int i=0; i<groupAssetNum; i++) {
+                [self.assetsAlbumName addObject:groupName];
+            }
+            
             [self.groups addObject:group];
             self.assetsCount += [group numberOfAssets];
         }
@@ -92,6 +108,7 @@
             for (group in self.groups)
             {   // Enumarate each asset group
                 ALAssetsFilter *onlyPhotosFilter = [ALAssetsFilter allPhotos];
+                NSLog(@"in AssetLib, group is %@", group);
                 [group setAssetsFilter:onlyPhotosFilter];
                 [group enumerateAssetsUsingBlock:assetsEnumerationBlock];
             }
@@ -119,10 +136,19 @@
         {
             ALAsset* asset = self.assets[i];
             NSString* url = [[asset valueForProperty:ALAssetPropertyAssetURL] absoluteString];
+            NSString* albumName =  self.assetsAlbumName[i];
+            //            NSLog(@"in getAllPhotosComplete: url is %@", url);
+            //            NSLog(@"in getAllPhotosComplete: albumName is %@", albumName);
+            
+            
             NSDictionary* photo = @{
-                                    @"url": url
-                                   };
+                                    @"url": url,
+                                    @"albumName": albumName
+                                    };
             [photos setObject:photo forKey:photo[@"url"]];
+            [photos setObject:photo forKey:photo[@"albumName"]];
+            
+            
         }
         NSArray* photoMsg = [photos allValues];
         NSLog(@"Sending to phonegap application message with %lu photos",(unsigned long)[photoMsg count]);
@@ -151,7 +177,7 @@
         NSDictionary* photo = @{
                                 @"url": url,
                                 @"date": date
-                               };
+                                };
         NSMutableDictionary* photometa = [self getImageMeta:asset];
         [photometa addEntriesFromDictionary:photo];
         return photometa;
@@ -159,6 +185,26 @@
     
     [self getPhotos:command processBlock:processMetadataBlock];
 }
+
+- (void)getFullScreenPhotos:(CDVInvokedUrlCommand*)command
+{
+    NSLog(@"getFullScreenPhotos");
+    
+    ALAssetsLibraryProcessBlock processFullScreenPhotoBlock = ^(ALAsset *asset) {
+        ALAssetRepresentation* representation = [asset defaultRepresentation];
+        CGImageRef imageRef = [representation fullScreenImage];
+        UIImage* img = [UIImage imageWithCGImage:imageRef];
+        NSString* base64src = [UIImagePNGRepresentation(img) base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
+        NSDictionary* base64dict = @{@"base64encoded": base64src};
+        return base64dict;
+        
+    };
+    
+    [self getPhotos:command processBlock:processFullScreenPhotoBlock];
+    
+}
+
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Gets asset representation meta data
@@ -211,6 +257,9 @@
     }
 }
 
+
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Common method which gets assets for one or more url's and processes them given processBlock
 
@@ -238,8 +287,15 @@ typedef NSDictionary* (^ALAssetsLibraryProcessBlock)(ALAsset *asset);
                                     NSDictionary* photo = process(asset);
                                     NSLog(@"Done %d: %@", i, photo[@"url"]);
                                     [photos setObject:photo forKey:photo[@"url"]];
+                                    
+                                    int urlListCount = [urlList count];
+                                    int photosCount = [photos count];
+                                    NSLog(@"in assetslib: urlList is %i", urlListCount);
+                                    NSLog(@"in assetslib: photocount is %i", photosCount);
+                                    
                                     if ([urlList count] == [photos count])
                                     {
+                                        
                                         NSArray* photoMsg = [photos allValues];
                                         NSLog(@"Sending to phonegap application message with %lu photos",(unsigned long)[photoMsg count]);
                                         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:photoMsg];
