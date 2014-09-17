@@ -13,7 +13,7 @@ Use cordova command line tools to add phonegap-plugin-assetslib to your project
 
 What works for me is to match this library path
 * In your project source directory execute: `cordova plugin add https://github.com/Astruminger/phonegap-plugin-assetslib.git`
-* This does not apparently update the config.xml at root. Comment out <gap:plugin name="com.flexblast.cordova.plugin.assetslib" /> and add <gap:plugin name="com.bibliosmart.cordova.plugin.assetslib" />
+* This does not apparently update the config.xml at root. Comment out '<gap:plugin name="com.flexblast.cordova.plugin.assetslib" />' and add '<gap:plugin name="com.bibliosmart.cordova.plugin.assetslib" />'
 * Also note xCode background updates clear out the simulator photos. This app will not run with no photos nor will it instruct the user. This will be the second test Apples auto scan will check submitting to the store so this needs fixed.
 
 
