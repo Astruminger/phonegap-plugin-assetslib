@@ -205,6 +205,30 @@
 }
 
 
+- (void)getThumbnails:(CDVInvokedUrlCommand*)command
+{
+    NSLog(@"getThumbnails");
+    
+    ALAssetsLibraryProcessBlock processThumbnailsBlock = ^(ALAsset *asset) {
+        NSString* url = [[asset valueForProperty:ALAssetPropertyAssetURL] absoluteString];
+        CGImageRef thumbnailImageRef = [asset thumbnail];
+        UIImage* thumbnail = [UIImage imageWithCGImage:thumbnailImageRef];
+        
+        NSString* base64encoded = [UIImagePNGRepresentation(thumbnail) base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
+//        NSLog(@"thumbnail.image.height is %f", thumbnail.size.height);
+//        NSLog(@"in Assetslib, base64encoded is %@", base64encoded);
+        NSDictionary* photo = @{
+                                @"url": url,
+                                @"base64encoded": base64encoded
+                                };
+        return photo;
+    };
+    
+    [self.commandDelegate runInBackground:^{
+        [self getPhotos:command processBlock:processThumbnailsBlock];
+    }];
+
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Gets asset representation meta data
@@ -230,6 +254,9 @@
         [dict setValue:Longitude forKey:@"gps_Longitude"];
         [dict setValue:LatitudeRef forKey:@"gps_LatitudeRef"];
         [dict setValue:LongitudeRef forKey:@"gps_LongitudeRef"];
+
+        
+        
     }
     //@"{Exif}"
     NSDictionary* exif = [metadata objectForKey:@"{Exif}"];
@@ -285,13 +312,13 @@ typedef NSDictionary* (^ALAssetsLibraryProcessBlock)(ALAsset *asset);
             [self.assetsLibrary assetForURL:url
                                 resultBlock: ^(ALAsset *asset){
                                     NSDictionary* photo = process(asset);
-                                    NSLog(@"Done %d: %@", i, photo[@"url"]);
+//                                    NSLog(@"Done %d: %@", i, photo[@"url"]);
                                     [photos setObject:photo forKey:photo[@"url"]];
                                     
                                     int urlListCount = [urlList count];
                                     int photosCount = [photos count];
-                                    NSLog(@"in assetslib: urlList is %i", urlListCount);
-                                    NSLog(@"in assetslib: photocount is %i", photosCount);
+//                                    NSLog(@"in assetslib: urlList is %i", urlListCount);
+//                                    NSLog(@"in assetslib: photocount is %i", photosCount);
                                     
                                     if ([urlList count] == [photos count])
                                     {
